@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    
+    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "esModuleInterop": true,
+    "strict": true,
+    "target": "ES2022",            /* Or ESNext */
+    "module": "NodeNext",          /* Generates ESM-compliant code */
+    "moduleResolution": "NodeNext"
+  },
+  "include": ["src"]
+}
