@@ -9,34 +9,33 @@ if(!process.env.JWT_SECRET) {
 }
 
 export const authorize = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
-
-console.log(req.cookies);
    const token = req.cookies.token;
-    
-
 
    if(!token) {
     return res.status(401).json({message: "Unauthorized"})
    }
+
   try {
- 
+    const decoded = JWT.verify(token, process.env.JWT_SECRET as string) as {
+      userId?: string;
+      email?: string;
+    };
 
-  const decoded = JWT.verify(token, process.env.JWT_SECRET as string) as {email: string};
+    let user = null;
 
+    if (decoded.userId) {
+      user = await User.findById(decoded.userId).select("-password");
+    } else if (decoded.email) {
+      user = await User.findOne({ email: decoded.email }).select("-password");
+    }
 
-  const user = await User.find({ email: decoded.email }).select("-password");
-console.log(user)
+    if(!user) {
+      return res.status(401).json({ message: "Unauthorized" })
+    }
 
-  if(!user) {
-   return res.status(401).json({ message: "Unauthorized" })
-  }
+    (req as any).user = user;
 
-  // attach user to request for downstream handlers
-  (req as any).user = user;
-
-   next();
-
-
+    next();
   }catch (err) {
    next(err)
   }

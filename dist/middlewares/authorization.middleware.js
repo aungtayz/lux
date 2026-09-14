@@ -6,19 +6,22 @@ if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET is not defined in environment variables");
 }
 export const authorize = async (req, res, next) => {
-    console.log(req.cookies);
     const token = req.cookies.token;
     if (!token) {
         return res.status(401).json({ message: "Unauthorized" });
     }
     try {
         const decoded = JWT.verify(token, process.env.JWT_SECRET);
-        const user = await User.find({ email: decoded.email }).select("-password");
-        console.log(user);
+        let user = null;
+        if (decoded.userId) {
+            user = await User.findById(decoded.userId).select("-password");
+        }
+        else if (decoded.email) {
+            user = await User.findOne({ email: decoded.email }).select("-password");
+        }
         if (!user) {
             return res.status(401).json({ message: "Unauthorized" });
         }
-        // attach user to request for downstream handlers
         req.user = user;
         next();
     }

@@ -77,7 +77,7 @@ await redisClient.set(`otp:${email}`, hash, { EX: 60 * 5 }); // expires in 5 min
 await redisClient.set(
   `signup:${email}`,
   JSON.stringify({ name,  password: hashedPassword }),
-  { EX: 60 * 5 }
+  { EX: 60 * 5 } 
 );
 
 
@@ -101,7 +101,7 @@ try {
 
 
 // Generate JWT token
-const token = JWT.sign({userId: email.toString()}, JWT_SECRET, {expiresIn: '1h'});
+const token = JWT.sign({ email }, JWT_SECRET, {expiresIn: '1h'});
 
 
 
@@ -131,11 +131,15 @@ export const loginHandler = async (req: Request, res: Response, next: NextFuncti
 
     const correctPassword = await bcrypt.compare(password, user.password);
     if(!correctPassword) {
-      return res.status(400).json({message: "Invalid email or password"});
-    }
-    await getCachedAttempt(email)
 
-    const token = JWT.sign({userId: user._id.toString()}, JWT_SECRET, {expiresIn: '1h'});
+      // Only increase the attempt when the password is incorrect
+        await getCachedAttempt(email)
+      return res.status(400).json({message: "Invalid email or password"});
+      
+    }
+  
+
+    const token = JWT.sign({ userId: user._id.toString(), email: user.email }, JWT_SECRET, {expiresIn: '1h'});
 
     res.cookie('token', token, {httpOnly: true, secure: false, sameSite: 'lax', maxAge: 1000 * 60 * 60 })
     
@@ -180,14 +184,16 @@ const pendingSignupData = await redisClient.get(`signup:${email}`);
 const signUpData = pendingSignupData ? JSON.parse(pendingSignupData) : null;
 
 if (!cachedHash || !pendingSignupData) {
+ 
   return res.status(400).json({ message: "OTP expired or invalid" });
 }
 
 if( hashedOTP !== cachedHash ) {
+   await getCachedAttempt(email);
   return res.status(400).json({message: "Incorrect OTP!"})
 }
 //Deleting the OTP in cache
-await redisClient.del(`otp"${email}`);
+await redisClient.del(`otp:${email}`);
 
 const {name, password} = signUpData;
   session.startTransaction();
@@ -199,12 +205,13 @@ const {name, password} = signUpData;
     path: '/',
   });
 
-// // Generate JWT token
-const token = JWT.sign({userId: email.toString()}, JWT_SECRET, {expiresIn: '1h'});
+const userData = user[0].toObject();
+
+// Generate JWT token for the verified user session
+const token = JWT.sign({ userId: userData._id.toString(), email: userData.email }, JWT_SECRET, {expiresIn: '1h'});
 
 await session.commitTransaction();
 session.endSession();
-const userData = user[0].toObject();
 console.log("User created: ", userData);
 
 res.cookie('token', token, {httpOnly: true, secure: false, sameSite: 'lax', maxAge: 1000 * 60 * 60 })
