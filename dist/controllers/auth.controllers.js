@@ -68,7 +68,7 @@ export const signupHandler = async (req, res, next) => {
             console.error("Error while sending mail:", err);
         }
         // Generate JWT token
-        const token = JWT.sign({ userId: email.toString() }, JWT_SECRET, { expiresIn: '1h' });
+        const token = JWT.sign({ email }, JWT_SECRET, { expiresIn: '1h' });
         res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'lax', maxAge: 1000 * 60 * 60 });
         res.status(201).json({ "success": true, "data": {
                 user: { name, email }
